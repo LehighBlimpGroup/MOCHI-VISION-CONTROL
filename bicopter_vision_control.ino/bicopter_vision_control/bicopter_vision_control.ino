@@ -1,5 +1,6 @@
 #include <crazyflieComplementary.h>
 #include "WiFi.h"
+#include <IBusBM.h>
 #include "AsyncUDP.h"
 #include <ESP32Servo.h>
 
@@ -10,6 +11,7 @@
  
 const char * ssid = "AIRLab-BigLab";
 const char * password = "Airlabrocks2022";
+
 Servo servo1;
 Servo servo2; 
 Servo thrust1;
@@ -17,7 +19,14 @@ Servo thrust2;
 
 SensFusion sensorSuite;
 
+//*************************************
+//iBus protocols
+IBusBM IBus; 
+HardwareSerial MySerial0(0);
+//*************************************
+
 AsyncUDP udp;
+
 float joy_data[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 volatile bool joy_ready = false;
 volatile unsigned long time_now, time_loop; 
@@ -68,8 +77,13 @@ float lx = .15;
 float m1, m2, s1, s2;
 
 void setup() {
-  Serial.begin(9600);
+  //For debugging
+  Serial.begin(115200);
   delay(500);
+  //*************************************
+  MySerial0.begin(115200, SERIAL_8N1, -1, -1);
+  IBus.begin(MySerial0, IBUSBM_NOTIMER);
+  //*************************************
   pinMode(SERVO1, OUTPUT);
   pinMode(SERVO2, OUTPUT);
   pinMode(THRUST1, OUTPUT);
@@ -98,9 +112,9 @@ void setup() {
   //sensorSuite.recordData();
 
   float transformationMatrix[3][3] = {
-    {     1.0000f,  -32.2488f,   -0.4705f},
-   {-30.6786f,   -0.2169f,   -5.6020f},
-    {-1.1802f,    0.0597f,   35.5136f}
+    {    1.0000f,  -32.2488f,   -0.4705f},
+    {  -30.6786f,   -0.2169f,   -5.6020f},
+    {.  -1.1802f,    0.0597f,   35.5136f}
   };
   float offsets[3] = {20.45f, 64.11f, -67.0f};
   sensorSuite.enterTransform(offsets, transformationMatrix);
@@ -115,13 +129,13 @@ void setup() {
    WiFi.begin(ssid, password);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi Failed");
-    while(1) {
+    while(true) {
       delay(3000);
-    servo1.write((int) 180);
-    servo2.write((int) 0);
+      servo1.write((int) 180);
+      servo2.write((int) 0);
       delay(3000);
-    servo1.write((int) 0);
-    servo2.write((int) 180);
+      servo1.write((int) 0);
+      servo2.write((int) 180);
     }
   }
 
@@ -170,17 +184,31 @@ void setup() {
 
 void loop() {
   //gyro, acc, mag, euler, z
-  
   float cfx, cfy, cfz, ctx, cty, ctz;
-  if (joy_ready && joy_data[7] != 0){
+
+  //*************************************
+  // kkl
+  IBus.loop();
+  int cx = IBus.readChannel(0);
+  int half_frame = IBus.readChannel(1);
+  Serial.print("\nCh1: cx=");
+  Serial.print(cx);
+  Serial.print("\nCh2: frame=");
+  Serial.print(half_frame);
+  float xPositionOfBalloon = (float) cx/ (float) half_frame;
+  Serial.print("\nxPositionOfBalloon=");
+  Serial.print(xPositionOfBalloon);
+  delay(20);
+  //*************************************
+
+  if (joy_ready && joy_data[7] != 0) {
     servo1.write((int) (90));
     servo2.write((int) (90));
     thrust1.writeMicroseconds(1000);
     //delay(5);
     thrust2.writeMicroseconds(1000);
     //delay(5);//unpack
-  }
-  else if (joy_ready && millis() - time_now <= 1000){ //&& millis() - time_loop > 50) {
+  } else if (joy_ready && millis() - time_now <= 1000) { //&& millis() - time_loop > 50) {
     sensorSuite.sensfusionLoop(false, 4);
     getSensorValues();
     time_loop = millis();
@@ -231,7 +259,7 @@ void loop() {
 //  send_udp_feedback();
 }
 
-void getSensorValues(){ //all in radians or meters or meters per second
+void getSensorValues() { //all in radians or meters or meters per second
   roll = sensorSuite.getRoll() -5*PI/180;
   pitch = 1*sensorSuite.getPitch()+8*PI/180;
   yaw = sensorSuite.getYaw();
