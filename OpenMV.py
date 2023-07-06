@@ -1,15 +1,16 @@
 # Mochi Control - By: karenli - Wed Jul 5 2023
-# This code should be running on OpenMV, upload this script using OpenMV IDE
 
-import sensor, image, time, pyb
+import sensor, image, time, network, pyb, rpc, omv
 from pyb import UART
+
+#omv.disable_fb(True)
 
 #Network credentials
 SSID='AIRLab-BigLab'
 KEY='Airlabrocks2022'
 
 #Threshold for balloon in LAB color space
-blob_threshold = (45, 60, 40, 80, 50, 70)
+blob_threshold = (10, 45, 30, 70, 20, 60)
 
 
 # Image sensor initialization
@@ -121,13 +122,17 @@ if __name__ == "__main__":
 
     #Sensor setup
     setting_up()
-    init_sensor(gain=-3, exposure=55000, saturation=3, contrast=1)
+    init_sensor(gain=-8, exposure=100000, saturation=2, contrast=1)
 
     #Network setup
     interface = setup_network(SSID, KEY)
 
     #Loop
     while(True):
+        ##Video streaming ***Comment out when not needed
+        #interface.register_callback(jpeg_image_stream)
+        #interface.loop()
+
         img = sensor.snapshot()     # Take a snapshot
         img.lens_corr(strength=1.6) # Make camera lens less distorted
 
@@ -167,9 +172,4 @@ if __name__ == "__main__":
         msg[-2] = chB
         uart.write(msg)         # send 32 byte message
         print(msg)
-
-        #Video streaming ***Comment out when not needed
-        interface.register_callback(jpeg_image_stream)
-        interface.loop()
-
 

@@ -114,7 +114,7 @@ void setup() {
   float transformationMatrix[3][3] = {
     {    1.0000f,  -32.2488f,   -0.4705f},
     {  -30.6786f,   -0.2169f,   -5.6020f},
-    {.  -1.1802f,    0.0597f,   35.5136f}
+    {   -1.1802f,    0.0597f,   35.5136f}
   };
   float offsets[3] = {20.45f, 64.11f, -67.0f};
   sensorSuite.enterTransform(offsets, transformationMatrix);
