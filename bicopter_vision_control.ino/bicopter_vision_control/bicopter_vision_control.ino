@@ -17,7 +17,7 @@ Servo servo2;
 Servo thrust1;
 Servo thrust2;
 
-SensFusion sensorSuite;
+// SensFusion sensorSuite;
 
 //*************************************
 //iBus protocols
@@ -33,7 +33,7 @@ volatile unsigned long time_now, time_loop;
 
 //added code
 //Enter arming sequence for ESC
-void escarm(Servo& thrust1, Servo& thrust2){
+void escarm(Servo& thrust1, Servo& thrust2) {
   // ESC arming sequence for BLHeli S
   thrust1.writeMicroseconds(1000);
   delay(10);
@@ -41,14 +41,14 @@ void escarm(Servo& thrust1, Servo& thrust2){
   delay(10);
 
   // Sweep up
-  for(int i=1100; i<1500; i++) {
+  for (int i=1100; i<1500; i++) {
     thrust1.writeMicroseconds(i);
     delay(5);
     thrust2.writeMicroseconds(i);
     delay(5);
   }
   // Sweep down
-  for(int i=1500; i<1100; i--) {
+  for (int i=1500; i<1100; i--) {
     thrust1.writeMicroseconds(i);
     delay(5);
     thrust2.writeMicroseconds(i);
@@ -62,28 +62,31 @@ void escarm(Servo& thrust1, Servo& thrust2){
 } 
 
 float roll, pitch, yaw;
-float rollrate, pitchrate, yawrate, yawrateave;
-float estimatedZ, velocityZ, groundZ;
-float abz;
-float kpz = .2;
-float kdz = 0;
-float kpx = .4;
+// float rollrate, pitchrate, yawrate, yawrateave;
+// float estimatedZ, velocityZ, groundZ; //from sensor
+// float abz; //absolute heihgt from sensor
+float kpz = .2; // prop gain in z
+float kdz = 0; 
+float kpx = .4; // prop gain in x
 float kdx = .2;
-float kptz = .3;
+float kptz = .2; // prop gain in angle in z .3
 float kdtz = 0.1;
-float kptx = .01;
+float kptx = .01; // prop gain in angle in x
 float kdtx = .01;
-float lx = .15;
+float lx = .15; // distance b/t motors and conters
 float m1, m2, s1, s2;
+float yaw_control;
 
 void setup() {
   //For debugging
   Serial.begin(115200);
   delay(500);
+  //For reading iBus
   //*************************************
   MySerial0.begin(115200, SERIAL_8N1, -1, -1);
   IBus.begin(MySerial0, IBUSBM_NOTIMER);
   //*************************************
+  //Setting up pins servos and motors
   pinMode(SERVO1, OUTPUT);
   pinMode(SERVO2, OUTPUT);
   pinMode(THRUST1, OUTPUT);
@@ -101,14 +104,13 @@ void setup() {
   servo2.attach(SERVO2, 450, 2550);
   thrust1.attach(THRUST1, 1000, 2000);
   thrust2.attach(THRUST2, 1000, 2000);
-
+  // Testing
   escarm(thrust1, thrust2);
-
   delay(500);
   
-  sensorSuite.initSensors();
-  sensorSuite.updateKp(5,-1,0);//5,-1,0.3
-  groundZ = sensorSuite.returnZ();
+  // sensorSuite.initSensors();
+  // sensorSuite.updateKp(5,-1,0);//5,-1,0.3
+  // groundZ = sensorSuite.returnZ();
   //sensorSuite.recordData();
 
   float transformationMatrix[3][3] = {
@@ -117,16 +119,18 @@ void setup() {
     {   -1.1802f,    0.0597f,   35.5136f}
   };
   float offsets[3] = {20.45f, 64.11f, -67.0f};
-  sensorSuite.enterTransform(offsets, transformationMatrix);
-  getSensorValues();
+  // sensorSuite.enterTransform(offsets, transformationMatrix);
+  // getSensorValues();
+
   servo1.write((int) 0);
   servo2.write((int) 0);
   delay(500);
-  
   servo1.write((int) 30);
   servo2.write((int) 30);
-   WiFi.mode(WIFI_STA);
-   WiFi.begin(ssid, password);
+
+  //Setting up WiFi
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("WiFi Failed");
     while(true) {
@@ -142,38 +146,34 @@ void setup() {
   servo1.write((int) 50);
   servo2.write((int) 50);
   delay(500);
-  
   servo1.write((int) 90);
   servo2.write((int) 90);
 
   // set the motor out pins as outputs
-
-
   //pinMode(THRUST1, OUTPUT);
   //pinMode(THRUST2, OUTPUT);
 
   time_now = millis();
   time_loop = millis();
-   if(udp.listen(1333)) {
-     Serial.print("UDP Listening on IP: ");
-     Serial.println(WiFi.localIP());
+  if(udp.listen(1333)) {
+    Serial.print("UDP Listening on IP: ");
+    Serial.println(WiFi.localIP());
+    // setup callback functions of the udp
+    udp.onPacket([](AsyncUDPPacket packet) {
+      joy_ready = false;
+      time_now = millis();
+      unsigned char *buffer = packet.data();
+      //buff = *buffer;
+      unpack_joystick(joy_data, buffer);
+      joy_ready = true;
+      //reply to the client
+      //packet.printf("Got %u bytes of data", packet.length());
+    });
+  }
 
-     // setup callback functions of the udp
-     udp.onPacket([](AsyncUDPPacket packet) {
-       joy_ready = false;
-       time_now = millis();
-       unsigned char *buffer = packet.data();
-       //buff = *buffer;
-       unpack_joystick(joy_data, buffer);
-       joy_ready = true;
-       //reply to the client
-       //packet.printf("Got %u bytes of data", packet.length());
-     });
-   }
   servo1.write((int) 110);
   servo2.write((int) 110);
   delay(500);
-  
   servo1.write((int) 150);
   servo2.write((int) 150);
   delay(500);
@@ -182,12 +182,11 @@ void setup() {
 
 }
 
+// Yaw control loop()
 void loop() {
-  //gyro, acc, mag, euler, z
   float cfx, cfy, cfz, ctx, cty, ctz;
-
   //*************************************
-  // kkl
+  // Getting messages from OpenMV
   IBus.loop();
   int cx = IBus.readChannel(0);
   int half_frame = IBus.readChannel(1);
@@ -195,83 +194,135 @@ void loop() {
   Serial.print(cx);
   Serial.print("\nCh2: frame=");
   Serial.print(half_frame);
-  float xPositionOfBalloon = (float) cx/ (float) half_frame;
-  Serial.print("\nxPositionOfBalloon=");
-  Serial.print(xPositionOfBalloon);
+  float value;
+  if (cx != 0) {
+    value = (cx - half_frame);
+    Serial.print("\nx position on frame=");
+    Serial.print(value);
+  } else {
+    value = 0;
+  }
+  yaw_control = value/half_frame;
+  Serial.print("\nyaw_control=");
+  Serial.print(yaw_control);
   delay(20);
   //*************************************
 
-  if (joy_ready && joy_data[7] != 0) {
-    servo1.write((int) (90));
-    servo2.write((int) (90));
-    thrust1.writeMicroseconds(1000);
-    //delay(5);
-    thrust2.writeMicroseconds(1000);
-    //delay(5);//unpack
-  } else if (joy_ready && millis() - time_now <= 1000) { //&& millis() - time_loop > 50) {
-    sensorSuite.sensfusionLoop(false, 4);
-    getSensorValues();
-    time_loop = millis();
+  // addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, abz);
+  addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, &yaw_control);
+  Serial.print("\nctz=");
+  Serial.print(ctz);
+  controlOutputs(cfx, cfy, cfz, ctx, cty, ctz);
 
-    //time_now = millis();// comment out when using a joystick controller
-    getControllerInputs(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, &abz);
-//     Serial.print(cfx);
-//     Serial.print(",");
-//     Serial.print(cfy);
-//     Serial.print(",");
-//     Serial.print(cfz);
-//     Serial.print(",");
-//     Serial.print(ctx);
-//     Serial.print(",");
-//     Serial.print(cty);
-//     Serial.print(",");
-//     Serial.print(ctz);
-//     Serial.print(",");
-//     Serial.println(abz);
-    addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, abz);
-    controlOutputs(cfx, cfy, cfz, ctx, cty, ctz);
+  servo1.write((int) (s1*180));
+  servo2.write((int) ((1-s2)*180));
+  
+  thrust1.writeMicroseconds(1100 + 400*m1);
+  thrust2.writeMicroseconds(1100 + 400*m2);
 
-    servo1.write((int) (s1*180));
-    servo2.write((int) ((1-s2)*180));
+  Serial.print((int) (s1*180));
+  Serial.print(",");
+  Serial.print((int) (s2*180));
+  Serial.print(",");
+  Serial.print(m1);
+  Serial.print(",");
+  Serial.println(m2);
+  Serial.print((int) (s1*180));
+}
+
+
+// Joystick loop()
+// void loop() {
+//   //gyro, acc, mag, euler, z
+//   float cfx, cfy, cfz, ctx, cty, ctz;
+
+//   //*************************************
+//   // Getting messages from OpenMV
+//   IBus.loop();
+//   int cx = IBus.readChannel(0);
+//   int half_frame = IBus.readChannel(1);
+//   Serial.print("\nCh1: cx=");
+//   Serial.print(cx);
+//   Serial.print("\nCh2: frame=");
+//   Serial.print(half_frame);
+//   float xPositionOfBalloon = ((float)cx)/((float)half_frame);
+//   Serial.print("\nxPositionOfBalloon=");
+//   Serial.print(xPositionOfBalloon);
+//   delay(20);
+//   //*************************************
+
+//   if (joy_ready && joy_data[7] != 0) {
+//     servo1.write((int) (90));
+//     servo2.write((int) (90));
+//     thrust1.writeMicroseconds(1000);
+//     //delay(5);
+//     thrust2.writeMicroseconds(1000);
+//     //delay(5);//unpack
+//   } else if (joy_ready && millis() - time_now <= 1000) { //&& millis() - time_loop > 50) {
+//     // sensorSuite.sensfusionLoop(false, 4);
+//     // getSensorValues();
+//     time_loop = millis();
+
+//     //time_now = millis();// comment out when using a joystick controller
+//     getControllerInputs(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, &abz);
+// //     Serial.print(cfx);
+// //     Serial.print(",");
+// //     Serial.print(cfy);
+// //     Serial.print(",");
+// //     Serial.print(cfz);
+// //     Serial.print(",");
+// //     Serial.print(ctx);
+// //     Serial.print(",");
+// //     Serial.print(cty);
+// //     Serial.print(",");
+// //     Serial.print(ctz);
+// //     Serial.print(",");
+// //     Serial.println(abz);
+//     addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, abz);
+//     controlOutputs(cfx, cfy, cfz, ctx, cty, ctz);
+
+//     servo1.write((int) (s1*180));
+//     servo2.write((int) ((1-s2)*180));
     
-    thrust1.writeMicroseconds(1100 + 400*m1);
-    //delay(5);
-    thrust2.writeMicroseconds(1100 + 400*m2);
-    //delay(5);
-    //analogWrite(THRUST1, (int) (m1*255));
-    //analogWrite(THRUST2, (int) (m2*255));
-//
-//     Serial.print((int) (s1*180));
-//     Serial.print(",");
-//     Serial.print((int) (s2*180));
-//     Serial.print(",");
-//     Serial.print(m1);
-//     Serial.print(",");
-//     Serial.println(m2);Serial.print((int) (s1*180));
-  } else {
-    servo1.write((int) (90));
-    servo2.write((int) (90));
-    thrust1.writeMicroseconds(1000);
-    //delay(5);
-    thrust2.writeMicroseconds(1000);
-    //delay(5);
-  }
-//  send_udp_feedback();
-}
+//     thrust1.writeMicroseconds(1100 + 400*m1);
+//     //delay(5);
+//     thrust2.writeMicroseconds(1100 + 400*m2);
+//     //delay(5);
+//     //analogWrite(THRUST1, (int) (m1*255));
+//     //analogWrite(THRUST2, (int) (m2*255));
+// //
+// //     Serial.print((int) (s1*180));
+// //     Serial.print(",");
+// //     Serial.print((int) (s2*180));
+// //     Serial.print(",");
+// //     Serial.print(m1);
+// //     Serial.print(",");
+// //     Serial.println(m2);Serial.print((int) (s1*180));
+//   } else {
+//     servo1.write((int) (90));
+//     servo2.write((int) (90));
+//     thrust1.writeMicroseconds(1000);
+//     //delay(5);
+//     thrust2.writeMicroseconds(1000);
+//     //delay(5);
+//   }
+// //  send_udp_feedback();
+// }
 
-void getSensorValues() { //all in radians or meters or meters per second
-  roll = sensorSuite.getRoll() -5*PI/180;
-  pitch = 1*sensorSuite.getPitch()+8*PI/180;
-  yaw = sensorSuite.getYaw();
-  rollrate = sensorSuite.getRollRate();
-  pitchrate = sensorSuite.getPitchRate();
-  yawrate = sensorSuite.getYawRate();
-  yawrateave = yawrateave * .95 + yawrate * .05;
-  estimatedZ = sensorSuite.returnZ();
-  velocityZ = sensorSuite.returnVZ(); 
-}
+// void getSensorValues() { //all in radians or meters or meters per second
+//   roll = sensorSuite.getRoll() -5*PI/180;
+//   pitch = 1*sensorSuite.getPitch()+8*PI/180;
+//   yaw = sensorSuite.getYaw();
+//   rollrate = sensorSuite.getRollRate();
+//   pitchrate = sensorSuite.getPitchRate();
+//   yawrate = sensorSuite.getYawRate();
+//   yawrateave = yawrateave * .95 + yawrate * .05;
+//   estimatedZ = sensorSuite.returnZ();
+//   velocityZ = sensorSuite.returnVZ(); 
+// }
+
 float valtz = 0;
-void getControllerInputs(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float *abz){
+void getControllerInputs(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float *abz) {
   if (false) {
     *fx = 0;//joy_data[0];
     *fy = 0;//joy_data[1];
@@ -280,45 +331,49 @@ void getControllerInputs(float *fx, float *fy, float *fz, float *tx, float *ty, 
     *ty = 0;//joy_data[4];
     *tz = 0;//joy_data[5];
     *abz = 0;//joy_data[6];
-    if (valtz > 1){
+    if (valtz > 1) {
       valtz = -1;
     } else {
       valtz += .01;
     }
-  } else{
-  *fx = joy_data[0];
-  *fy = joy_data[1];
-  *fz = joy_data[2];
-  *tx = joy_data[3];
-  *ty = joy_data[4];
-  *tz = joy_data[5];
-  *abz = joy_data[6];
+  } else {
+    *fx = joy_data[0];
+    *fy = joy_data[1];
+    *fz = joy_data[2];
+    *tx = joy_data[3];
+    *ty = joy_data[4];
+    *tz = joy_data[5];
+    *abz = joy_data[6];
   }
 }
-void addFeedback(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float abz){
-    *fz = (*fz  - (estimatedZ-groundZ))*kpz - (velocityZ)*kdz + abz;//*fz = *fz + abz;//
-    *tz = *tz * kptz - yawrateave*kdtz;
-    //*tx = *tx - roll* kptx - rollrate *kdtx;
 
-   float cosp = (float) cos(pitch);
-   float sinp = (float) sin(pitch);
-   float cosr = (float) cos(roll);
-   float ifx = *fx;
-    // sinr = (float) sin(self->roll);
-   *fx = ifx*cosp + *fz*sinp;
-   //float tfy = fy*cosp/2 + tempz*sinp/2;
-   *fz = (ifx*sinp + *fz* cosp)/cosr;
+void addFeedback(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float *yaw_control) {
+  // height control
+  // *fz = (*fz  - (estimatedZ-groundZ))*kpz - (velocityZ)*kdz + abz;//*fz = *fz + abz;
+  // yaw control
+  *tz = *yaw_control * kptz; //- yawrateave*kdtz;
+  //*tx = *tx - roll* kptx - rollrate *kdtx;
 
+  // float cosp = (float) cos(pitch);
+  // float sinp = (float) sin(pitch);
+  // float cosr = (float) cos(roll);
+  // float ifx = *fx;
+  // // sinr = (float) sin(self->roll);
+  // *fx = ifx*cosp + *fz*sinp; // p stands for pitch
+  // //float tfy = fy*cosp/2 + tempz*sinp/2;
+  // *fz = (ifx*sinp + *fz* cosp)/cosr;
 }
-float clamp(float in, float min, float max){
-  if (in< min){
+
+float clamp(float in, float min, float max) {
+  if (in < min) {
     return min;
-  } else if (in > max){
+  } else if (in > max) {
     return max;
   } else {
     return in;
   }
 }
+
 void controlOutputs(float ifx, float ify, float ifz, float itx, float ity, float itz) {
     //float desiredPitch = wty - self->pitch*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;
 
@@ -336,10 +391,8 @@ void controlOutputs(float ifx, float ify, float ifz, float itx, float ity, float
     float f1 = term3/(2*l); // in unknown units
     float f2 = term4/(2*l);
 
-
     float t1 = atan2((fz*l - taux)/term3, (fx*l + tauz)/term3 );// in radians
     float t2 = atan2((fz*l + taux)/term4, (fx*l - tauz)/term4 );
-
   
     while (t1 < 0) {
       t1 = t1 + 2 * PI;
@@ -357,10 +410,10 @@ void controlOutputs(float ifx, float ify, float ifz, float itx, float ity, float
     s2 = clamp(t2, 0, PI)/(PI);
     m1 = clamp(f1, 0, 1);
     m2 = clamp(f2, 0, 1);
-    if (m1 < 0.02f ){
+    if (m1 < 0.02f ) {
       s1 = 0.5f; 
     }
-    if (m2 < 0.02f ){
+    if (m2 < 0.02f ) {
       s2 = 0.5f; 
     }
 }
@@ -386,22 +439,22 @@ void unpack_joystick(float *dat, const unsigned char *buffer) {
 }
 
 // send udp feedback on roll, pitch, and yaw
-void send_udp_feedback(){ //const unsigned char *buffer
-  int num_floats = 4;
-  int num_bytes = 4;
-  float dat[4] = {roll, pitch, yaw, yawrate};
-  int i, j;
-  /*
-  for (i = 0; i < num_floats; i++){
-    char temp[4] = {0, 0, 0, 0};
-    for (j = 0; j < num_bytes; j++){
-      temp[j] = buffer[4*i + j];
-    }
-    dat[i] = *((float*) temp);
-  }
-  */
-  String blimp_feedback = String("");
-  blimp_feedback = String((float)roll) + String(", ") + String((float)pitch) + String(", ") + String((float)yaw + String(", ") + String((float)yawrate));
+// void send_udp_feedback() { //const unsigned char *buffer
+//   int num_floats = 4;
+//   int num_bytes = 4;
+//   float dat[4] = {roll, pitch, yaw, yawrate};
+//   int i, j;
+//   /*
+//   for (i = 0; i < num_floats; i++){
+//     char temp[4] = {0, 0, 0, 0};
+//     for (j = 0; j < num_bytes; j++){
+//       temp[j] = buffer[4*i + j];
+//     }
+//     dat[i] = *((float*) temp);
+//   }
+//   */
+//   String blimp_feedback = String("");
+//   blimp_feedback = String((float)roll) + String(", ") + String((float)pitch) + String(", ") + String((float)yaw + String(", ") + String((float)yawrate));
   
-  udp.broadcastTo(blimp_feedback.c_str(), 1333);
-}
+//   udp.broadcastTo(blimp_feedback.c_str(), 1333);
+// }

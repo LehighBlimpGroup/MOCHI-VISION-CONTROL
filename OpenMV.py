@@ -125,7 +125,7 @@ if __name__ == "__main__":
     init_sensor(gain=-8, exposure=100000, saturation=2, contrast=1)
 
     #Network setup
-    interface = setup_network(SSID, KEY)
+    #interface = setup_network(SSID, KEY)
 
     #Loop
     while(True):
@@ -152,7 +152,7 @@ if __name__ == "__main__":
             img.draw_rectangle(max_blob.rect())
             img.draw_cross(max_blob.cx(), max_blob.cy())
             #print(max_blob.cx(), max_blob.cy(), max_blob.w(), max_blob.h(), max_blob.w()*max_blob.h())
-            value = (int) (max_blob.cx() - (sensor.width()/2))
+            value = max_blob.cx()
             print(value)
             cx_msg = bytearray(value.to_bytes(2, 'little'))
             msg[2] = cx_msg[0]
@@ -164,6 +164,11 @@ if __name__ == "__main__":
 
         #If there's no detections
         else:
+            msg[2] = 0x0
+            msg[3] = 0x0
+            width_msg = bytearray(((int)(sensor.width()/2)).to_bytes(2, 'little'))
+            msg[4] = width_msg[0]
+            msg[5] = width_msg[1]
             red_led.off()
 
         #iBus protocol checksum
