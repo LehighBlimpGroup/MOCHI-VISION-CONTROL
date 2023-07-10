@@ -3,7 +3,7 @@
 import sensor, image, time, network, pyb, rpc, omv
 from pyb import UART
 
-#omv.disable_fb(True)
+omv.disable_fb(True)
 
 #Network credentials
 SSID='AIRLab-BigLab'
@@ -14,7 +14,7 @@ blob_threshold = (10, 45, 30, 70, 20, 60)
 
 
 # Image sensor initialization
-def init_sensor(pixformat=sensor.RGB565, framesize=sensor.QVGA, windowsize=None,
+def init_sensor(pixformat=sensor.RGB565, framesize=sensor.QQVGA, windowsize=None,
                 autogain=False,  gain=-3,  exposure=10000, contrast=0, saturation=0,
                 vflip=False, hmirror=False):
     sensor.reset()
@@ -29,7 +29,7 @@ def init_sensor(pixformat=sensor.RGB565, framesize=sensor.QVGA, windowsize=None,
     sensor.set_saturation(saturation)
     sensor.set_vflip(vflip)
     sensor.set_hmirror(hmirror)
-    sensor.skip_frames(time = 1000)
+    sensor.skip_frames(time = 2000)
     sensor.__write_reg(0x0E, 0b00000000)
     sensor.__write_reg(0x3E, 0b00000000)
     #sensor.__write_reg(0x01, 0b11000000)
@@ -122,16 +122,16 @@ if __name__ == "__main__":
 
     #Sensor setup
     setting_up()
-    init_sensor(gain=-8, exposure=100000, saturation=2, contrast=1)
+    init_sensor()
 
     #Network setup
-    #interface = setup_network(SSID, KEY)
+    interface = setup_network(SSID, KEY)
 
     #Loop
     while(True):
         ##Video streaming ***Comment out when not needed
-        #interface.register_callback(jpeg_image_stream)
-        #interface.loop()
+        interface.register_callback(jpeg_image_stream)
+        interface.loop()
 
         img = sensor.snapshot()     # Take a snapshot
         img.lens_corr(strength=1.6) # Make camera lens less distorted
