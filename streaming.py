@@ -33,7 +33,7 @@ if __name__ == "__main__":
     # start streaming
     while(True):
         sys.stdout.flush()
-        result = interface.call('jpeg_image_stream', 'sensor.RGB565, sensor.QQVGA')
+        result = interface.call('jpeg_image_stream', 'sensor.RGB565,sensor.QQVGA')
         print(result)
         if result is not None:# THE REMOTE DEVICE WILL START STREAMING ON SUCCESS. SO, WE NEED TO RECEIVE DATA IMMEDIATELY.
             print("Success")
