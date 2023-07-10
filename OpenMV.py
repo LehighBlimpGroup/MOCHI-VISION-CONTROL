@@ -29,7 +29,7 @@ def init_sensor(pixformat=sensor.RGB565, framesize=sensor.QQVGA, windowsize=None
     sensor.set_saturation(saturation)
     sensor.set_vflip(vflip)
     sensor.set_hmirror(hmirror)
-    sensor.skip_frames(time = 2000)
+    sensor.skip_frames(time = 1000)
     sensor.__write_reg(0x0E, 0b00000000)
     sensor.__write_reg(0x3E, 0b00000000)
     #sensor.__write_reg(0x01, 0b11000000)
@@ -82,8 +82,56 @@ def checksum(arr, initial= 0):
     return chA, chB
 
 
+def uart_message():
+    img = sensor.snapshot()     # Take a snapshot
+    img.lens_corr(strength=1.6) # Make camera lens less distorted
+
+    #iBus protocol
+    msg = bytearray(32)
+    msg[0] = 0x20               # start bytes (the other end must synchronize to this pattern)
+    msg[1] = 0x40
+
+    #Blob detection to find colored ballons
+    blobs = img.find_blobs([blob_threshold], merge=True, area_threshold=25, pixels_threshold=10)
+
+    #If there's any detection
+    if blobs:
+        red_led.on()
+        max_blob = find_max(blobs)
+        # These values are stable all the time.
+        img.draw_rectangle(max_blob.rect())
+        img.draw_cross(max_blob.cx(), max_blob.cy())
+        #print(max_blob.cx(), max_blob.cy(), max_blob.w(), max_blob.h(), max_blob.w()*max_blob.h())
+        value = max_blob.cx()
+        print(value)
+        cx_msg = bytearray(value.to_bytes(2, 'little'))
+        msg[2] = cx_msg[0]
+        msg[3] = cx_msg[1]
+        width_msg = bytearray(((int)(half_frame)).to_bytes(2, 'little'))
+        msg[4] = width_msg[0]
+        msg[5] = width_msg[1]
+        time.sleep_ms(20)
+
+    #If there's no detections
+    else:
+        msg[2] = 0x0
+        msg[3] = 0x0
+        width_msg = bytearray(((int)(sensor.width()/2)).to_bytes(2, 'little'))
+        msg[4] = width_msg[0]
+        msg[5] = width_msg[1]
+        red_led.off()
+
+    #iBus protocol checksum
+    chA, chB = checksum(msg[:-2], 0)
+    msg[-1] = chA
+    msg[-2] = chB
+    uart.write(msg)         # send 32 byte message
+    print(msg)
+
+
 #Live streaming callback functions
 def stream_generator_cb():
+    uart_message()
     return sensor.snapshot().compress(quality=90).bytearray()
 
 def jpeg_image_stream_cb():
@@ -131,52 +179,6 @@ if __name__ == "__main__":
 
     #Loop
     while(True):
-
-        img = sensor.snapshot()     # Take a snapshot
-        img.lens_corr(strength=1.6) # Make camera lens less distorted
-
-        #iBus protocol
-        msg = bytearray(32)
-        msg[0] = 0x20               # start bytes (the other end must synchronize to this pattern)
-        msg[1] = 0x40
-
-        #Blob detection to find colored ballons
-        blobs = img.find_blobs([blob_threshold], merge=True, area_threshold=25, pixels_threshold=10)
-
-        #If there's any detection
-        if blobs:
-            red_led.on()
-            max_blob = find_max(blobs)
-            # These values are stable all the time.
-            img.draw_rectangle(max_blob.rect())
-            img.draw_cross(max_blob.cx(), max_blob.cy())
-            #print(max_blob.cx(), max_blob.cy(), max_blob.w(), max_blob.h(), max_blob.w()*max_blob.h())
-            value = max_blob.cx()
-            print(value)
-            cx_msg = bytearray(value.to_bytes(2, 'little'))
-            msg[2] = cx_msg[0]
-            msg[3] = cx_msg[1]
-            width_msg = bytearray(((int)(half_frame)).to_bytes(2, 'little'))
-            msg[4] = width_msg[0]
-            msg[5] = width_msg[1]
-            time.sleep_ms(20)
-
-        #If there's no detections
-        else:
-            msg[2] = 0x0
-            msg[3] = 0x0
-            width_msg = bytearray(((int)(sensor.width()/2)).to_bytes(2, 'little'))
-            msg[4] = width_msg[0]
-            msg[5] = width_msg[1]
-            red_led.off()
-
-        #iBus protocol checksum
-        chA, chB = checksum(msg[:-2], 0)
-        msg[-1] = chA
-        msg[-2] = chB
-        uart.write(msg)         # send 32 byte message
-        print(msg)
-
         ##Video streaming ***Comment out when not needed
         interface.register_callback(jpeg_image_stream)
         interface.loop()
