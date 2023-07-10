@@ -82,7 +82,7 @@ def checksum(arr, initial= 0):
     return chA, chB
 
 
-def uart_message():
+def uart_message(half_frame=sensor.width()/2):
     img = sensor.snapshot()     # Take a snapshot
     img.lens_corr(strength=1.6) # Make camera lens less distorted
 
@@ -111,12 +111,11 @@ def uart_message():
         msg[4] = width_msg[0]
         msg[5] = width_msg[1]
         time.sleep_ms(20)
-
     #If there's no detections
     else:
         msg[2] = 0x0
         msg[3] = 0x0
-        width_msg = bytearray(((int)(sensor.width()/2)).to_bytes(2, 'little'))
+        width_msg = bytearray(((int)(half_frame)).to_bytes(2, 'little'))
         msg[4] = width_msg[0]
         msg[5] = width_msg[1]
         red_led.off()
@@ -173,13 +172,12 @@ if __name__ == "__main__":
     init_sensor()
 
     #Network setup
-    interface = setup_network(SSID, KEY)
-
-    half_frame = sensor.width()/2
+    #interface = setup_network(SSID, KEY)
 
     #Loop
     while(True):
+        uart_message()
         ##Video streaming ***Comment out when not needed
-        interface.register_callback(jpeg_image_stream)
-        interface.loop()
+        #interface.register_callback(jpeg_image_stream)
+        #interface.loop()
 
