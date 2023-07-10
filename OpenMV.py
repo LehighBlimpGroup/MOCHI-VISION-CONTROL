@@ -131,9 +131,6 @@ if __name__ == "__main__":
 
     #Loop
     while(True):
-        ##Video streaming ***Comment out when not needed
-        interface.register_callback(jpeg_image_stream)
-        interface.loop()
 
         img = sensor.snapshot()     # Take a snapshot
         img.lens_corr(strength=1.6) # Make camera lens less distorted
@@ -179,4 +176,8 @@ if __name__ == "__main__":
         msg[-2] = chB
         uart.write(msg)         # send 32 byte message
         print(msg)
+
+        ##Video streaming ***Comment out when not needed
+        interface.register_callback(jpeg_image_stream)
+        interface.loop()
 
