@@ -153,32 +153,32 @@ void setup() {
   //pinMode(THRUST1, OUTPUT);
   //pinMode(THRUST2, OUTPUT);
 
-  time_now = millis();
-  time_loop = millis();
-  if(udp.listen(1333)) {
-    Serial.print("UDP Listening on IP: ");
-    Serial.println(WiFi.localIP());
-    // setup callback functions of the udp
-    udp.onPacket([](AsyncUDPPacket packet) {
-      joy_ready = false;
-      time_now = millis();
-      unsigned char *buffer = packet.data();
-      //buff = *buffer;
-      unpack_joystick(joy_data, buffer);
-      joy_ready = true;
-      //reply to the client
-      //packet.printf("Got %u bytes of data", packet.length());
-    });
-  }
+  // time_now = millis();
+  // time_loop = millis();
+  // if(udp.listen(1333)) {
+  //   Serial.print("UDP Listening on IP: ");
+  //   Serial.println(WiFi.localIP());
+  //   // setup callback functions of the udp
+  //   udp.onPacket([](AsyncUDPPacket packet) {
+  //     joy_ready = false;
+  //     time_now = millis();
+  //     unsigned char *buffer = packet.data();
+  //     //buff = *buffer;
+  //     unpack_joystick(joy_data, buffer);
+  //     joy_ready = true;
+  //     //reply to the client
+  //     //packet.printf("Got %u bytes of data", packet.length());
+  //   });
+  // }
 
-  servo1.write((int) 110);
-  servo2.write((int) 110);
-  delay(500);
-  servo1.write((int) 150);
-  servo2.write((int) 150);
-  delay(500);
-  servo1.write((int) 90);
-  servo2.write((int) 90);
+  // servo1.write((int) 110);
+  // servo2.write((int) 110);
+  // delay(500);
+  // servo1.write((int) 150);
+  // servo2.write((int) 150);
+  // delay(500);
+  // servo1.write((int) 90);
+  // servo2.write((int) 90);
 
 }
 
