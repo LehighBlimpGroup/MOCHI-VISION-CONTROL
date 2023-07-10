@@ -69,7 +69,7 @@ float kpz = .2; // prop gain in z
 float kdz = 0; 
 float kpx = .4; // prop gain in x
 float kdx = .2;
-float kptz = 0.1; // prop gain in angle in z .3
+float kptz = 0.05; // prop gain in angle in z .3
 float kdtz = 0.1;
 float kptx = .01; // prop gain in angle in x
 float kdtx = .01;
@@ -211,7 +211,7 @@ void loop() {
   } else {
     value = 0;
   }
-  yaw_control = value/half_frame;
+  yaw_control = -value/half_frame;
   Serial.print("\nyaw_control=");
   Serial.print(yaw_control);
   //*************************************
