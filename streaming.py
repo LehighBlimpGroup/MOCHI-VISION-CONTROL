@@ -15,7 +15,7 @@ def jpg_frame_buffer_cb(data):
 
 if __name__ == "__main__":
     # interface that will be used to communicate with the remote device
-    interface = rpc.rpc_network_master(slave_ip='192.168.0.57', my_ip='', port=0x1DBA)
+    interface = rpc.rpc_network_master(slave_ip='192.168.0.115', my_ip='', port=0x1DBA)
 
     # initialize pygame
     pygame.init()

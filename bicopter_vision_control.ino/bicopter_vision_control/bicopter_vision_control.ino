@@ -69,7 +69,7 @@ float kpz = .2; // prop gain in z
 float kdz = 0; 
 float kpx = .4; // prop gain in x
 float kdx = .2;
-float kptz = .2; // prop gain in angle in z .3
+float kptz = 0.1; // prop gain in angle in z .3
 float kdtz = 0.1;
 float kptx = .01; // prop gain in angle in x
 float kdtx = .01;
@@ -184,12 +184,20 @@ void setup() {
 
 // Yaw control loop()
 void loop() {
-  float cfx, cfy, cfz, ctx, cty, ctz;
+  float cfx, cfy, cfz, ctx, cty, ctz, abz;   //control force x    control torque x
+  cfx = 0;//joy_data[0];
+  cfy = 0;//joy_data[1];
+  cfz = 0;//joy_data[2];
+  ctx = 0;//joy_data[3];
+  cty = 0;//joy_data[4];
+  ctz = 0;//joy_data[5];
+  abz = 0;//joy_data[6];
   //*************************************
   // Getting messages from OpenMV
   IBus.loop();
   int cx = IBus.readChannel(0);
-  int half_frame = IBus.readChannel(1);
+  int half_frame = 80;
+  //int half_frame = IBus.readChannel(1);
   Serial.print("\nCh1: cx=");
   Serial.print(cx);
   Serial.print("\nCh2: frame=");
@@ -199,26 +207,28 @@ void loop() {
     value = (cx - half_frame);
     Serial.print("\nx position on frame=");
     Serial.print(value);
+    cfz = .1;
   } else {
     value = 0;
   }
   yaw_control = value/half_frame;
   Serial.print("\nyaw_control=");
   Serial.print(yaw_control);
-  delay(20);
   //*************************************
 
   // addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, abz);
   addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, &yaw_control);
   Serial.print("\nctz=");
-  Serial.print(ctz);
+  Serial.println(ctz);
   controlOutputs(cfx, cfy, cfz, ctx, cty, ctz);
 
   servo1.write((int) (s1*180));
   servo2.write((int) ((1-s2)*180));
+  thrust1.write((int) (m1*180));
+  thrust2.write((int) (m2*180));
   
-  thrust1.writeMicroseconds(1100 + 400*m1);
-  thrust2.writeMicroseconds(1100 + 400*m2);
+  // thrust1.writeMicroseconds(1100 + 400*m1);
+  // thrust2.writeMicroseconds(1100 + 400*m2);
 
   Serial.print((int) (s1*180));
   Serial.print(",");
@@ -227,7 +237,8 @@ void loop() {
   Serial.print(m1);
   Serial.print(",");
   Serial.println(m2);
-  Serial.print((int) (s1*180));
+  delay(20);
+  
 }
 
 
@@ -323,7 +334,7 @@ void loop() {
 
 float valtz = 0;
 void getControllerInputs(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float *abz) {
-  if (false) {
+  if (true) {
     *fx = 0;//joy_data[0];
     *fy = 0;//joy_data[1];
     *fz = 0;//joy_data[2];
@@ -331,11 +342,6 @@ void getControllerInputs(float *fx, float *fy, float *fz, float *tx, float *ty, 
     *ty = 0;//joy_data[4];
     *tz = 0;//joy_data[5];
     *abz = 0;//joy_data[6];
-    if (valtz > 1) {
-      valtz = -1;
-    } else {
-      valtz += .01;
-    }
   } else {
     *fx = joy_data[0];
     *fy = joy_data[1];
@@ -351,7 +357,9 @@ void addFeedback(float *fx, float *fy, float *fz, float *tx, float *ty, float *t
   // height control
   // *fz = (*fz  - (estimatedZ-groundZ))*kpz - (velocityZ)*kdz + abz;//*fz = *fz + abz;
   // yaw control
+  
   *tz = *yaw_control * kptz; //- yawrateave*kdtz;
+  
   //*tx = *tx - roll* kptx - rollrate *kdtx;
 
   // float cosp = (float) cos(pitch);
@@ -372,11 +380,11 @@ float clamp(float in, float min, float max) {
   } else {
     return in;
   }
-}
+} //in is input
 
 void controlOutputs(float ifx, float ify, float ifz, float itx, float ity, float itz) {
     //float desiredPitch = wty - self->pitch*(float)g_self.kR_xy - self->pitchrate *(float)g_self.kw_xy;
-
+    // ifx=cfx;
     float l = lx; //.3
     float fx = clamp(ifx, -1 , 1);//setpoint->bicopter.fx;
     float fz = clamp(ifz, 0 , 2);//setpoint->bicopter.fz;
