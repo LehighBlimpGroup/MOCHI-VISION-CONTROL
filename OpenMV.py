@@ -3,7 +3,7 @@
 import sensor, image, time, network, pyb, rpc, omv
 from pyb import UART
 
-omv.disable_fb(True)
+#omv.disable_fb(True)
 
 #Network credentials
 SSID='AIRLab-BigLab'
@@ -127,6 +127,8 @@ if __name__ == "__main__":
     #Network setup
     interface = setup_network(SSID, KEY)
 
+    half_frame = sensor.width()/2
+
     #Loop
     while(True):
         ##Video streaming ***Comment out when not needed
@@ -157,7 +159,7 @@ if __name__ == "__main__":
             cx_msg = bytearray(value.to_bytes(2, 'little'))
             msg[2] = cx_msg[0]
             msg[3] = cx_msg[1]
-            width_msg = bytearray(((int)(sensor.width()/2)).to_bytes(2, 'little'))
+            width_msg = bytearray(((int)(half_frame)).to_bytes(2, 'little'))
             msg[4] = width_msg[0]
             msg[5] = width_msg[1]
             time.sleep_ms(20)
