@@ -128,26 +128,26 @@ void setup() {
   servo1.write((int) 30);
   servo2.write((int) 30);
 
-  //Setting up WiFi
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.println("WiFi Failed");
-    while(true) {
-      delay(3000);
-      servo1.write((int) 180);
-      servo2.write((int) 0);
-      delay(3000);
-      servo1.write((int) 0);
-      servo2.write((int) 180);
-    }
-  }
+  // //Setting up WiFi
+  // WiFi.mode(WIFI_STA);
+  // WiFi.begin(ssid, password);
+  // if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+  //   Serial.println("WiFi Failed");
+  //   while(true) {
+  //     delay(3000);
+  //     servo1.write((int) 180);
+  //     servo2.write((int) 0);
+  //     delay(3000);
+  //     servo1.write((int) 0);
+  //     servo2.write((int) 180);
+  //   }
+  // }
 
-  servo1.write((int) 50);
-  servo2.write((int) 50);
-  delay(500);
-  servo1.write((int) 90);
-  servo2.write((int) 90);
+  // servo1.write((int) 50);
+  // servo2.write((int) 50);
+  // delay(500);
+  // servo1.write((int) 90);
+  // servo2.write((int) 90);
 
   // set the motor out pins as outputs
   //pinMode(THRUST1, OUTPUT);
