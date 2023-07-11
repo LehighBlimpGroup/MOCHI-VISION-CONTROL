@@ -201,10 +201,12 @@ void loop() {
   int half_height = 60;
   Serial.print("\nCh1: cx=");
   Serial.print(cx);
+  Serial.print("\nwidth=");
   Serial.print(half_width);
   Serial.print("\nCh2: cy=");
   Serial.print(cy);
-  Serial.print( half_height);
+  Serial.print("\nheight=");
+  Serial.print(half_height);
   float value_x, value_z;
   if (cx != 0) {
     value_x = (cx - half_width);
