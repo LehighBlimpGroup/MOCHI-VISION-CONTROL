@@ -10,12 +10,13 @@ SSID='AIRLab-BigLab'
 KEY='Airlabrocks2022'
 
 #Threshold for balloon in LAB color space
-blob_threshold = (10, 45, 30, 70, 20, 60)
+#This is the threshold for red ball under sufficient lighting
+blob_threshold = (30, 60, 45, 80, 45, 70)
 
 
 # Image sensor initialization
 def init_sensor(pixformat=sensor.RGB565, framesize=sensor.QQVGA, windowsize=None,
-                autogain=False,  gain=-3,  exposure=10000, contrast=0, saturation=0,
+                autogain=False,  gain=2,  exposure=10000, contrast=0, saturation=0,
                 vflip=False, hmirror=False):
     sensor.reset()
     sensor.set_pixformat(pixformat)
@@ -85,15 +86,12 @@ def checksum(arr, initial= 0):
 def uart_message(half_frame=sensor.width()/2):
     img = sensor.snapshot()     # Take a snapshot
     img.lens_corr(strength=1.6) # Make camera lens less distorted
-
     #iBus protocol
-    msg = bytearray(32)
+    msg = bytearray(32)         # 16 pairs of bytes
     msg[0] = 0x20               # start bytes (the other end must synchronize to this pattern)
     msg[1] = 0x40
-
     #Blob detection to find colored ballons
     blobs = img.find_blobs([blob_threshold], merge=True, area_threshold=25, pixels_threshold=10)
-
     #If there's any detection
     if blobs:
         red_led.on()
@@ -101,30 +99,29 @@ def uart_message(half_frame=sensor.width()/2):
         # These values are stable all the time.
         img.draw_rectangle(max_blob.rect())
         img.draw_cross(max_blob.cx(), max_blob.cy())
-        #print(max_blob.cx(), max_blob.cy(), max_blob.w(), max_blob.h(), max_blob.w()*max_blob.h())
-        value = max_blob.cx()
-        print(value)
-        cx_msg = bytearray(value.to_bytes(2, 'little'))
+        x_value = max_blob.cx()
+        y_value = max_blob.cy()
+        print(x_value)
+        print(y_value)
+        cx_msg = bytearray(x_value.to_bytes(2, 'little'))
         msg[2] = cx_msg[0]
         msg[3] = cx_msg[1]
-        width_msg = bytearray(((int)(half_frame)).to_bytes(2, 'little'))
-        msg[4] = width_msg[0]
-        msg[5] = width_msg[1]
+        cy_msg = bytearray(y_value.to_bytes(2, 'little'))
+        msg[4] = cy_msg[0]
+        msg[5] = cy_msg[1]
         time.sleep_ms(20)
     #If there's no detections
     else:
         msg[2] = 0x0
         msg[3] = 0x0
-        width_msg = bytearray(((int)(half_frame)).to_bytes(2, 'little'))
-        msg[4] = width_msg[0]
-        msg[5] = width_msg[1]
+        msg[4] = 0x0
+        msg[5] = 0x0
         red_led.off()
-
     #iBus protocol checksum
     chA, chB = checksum(msg[:-2], 0)
     msg[-1] = chA
     msg[-2] = chB
-    uart.write(msg)         # send 32 byte message
+    uart.write(msg)             # send 32 byte message
     print(msg)
 
 
@@ -146,7 +143,7 @@ def jpeg_image_stream(data):
 
 #Finding the biggest detected blob
 def find_max(blobs):
-    max_size = 0
+    max_size = 0;
     for blob in blobs:
         if blob[2]*blob[3] > max_size:
             max_blob = blob
@@ -169,7 +166,7 @@ if __name__ == "__main__":
 
     #Sensor setup
     setting_up()
-    init_sensor()
+    init_sensor(exposure=20000, saturation=2)
 
     #Network setup
     #interface = setup_network(SSID, KEY)
