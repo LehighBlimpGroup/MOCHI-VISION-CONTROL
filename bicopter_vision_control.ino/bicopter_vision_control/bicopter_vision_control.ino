@@ -75,7 +75,7 @@ float kptx = .01; // prop gain in angle in x
 float kdtx = .01;
 float lx = .15; // distance b/t motors and conters
 float m1, m2, s1, s2;
-float yaw_control;
+float yaw_control, height_control;
 
 void setup() {
   //For debugging
@@ -196,28 +196,41 @@ void loop() {
   // Getting messages from OpenMV
   IBus.loop();
   int cx = IBus.readChannel(0);
-  int half_frame = 80;
-  //int half_frame = IBus.readChannel(1);
+  int cy = IBus.readChannel(1);
+  int half_width = 80;
+  int half_height = 60;
   Serial.print("\nCh1: cx=");
   Serial.print(cx);
-  Serial.print("\nCh2: frame=");
-  Serial.print(half_frame);
-  float value;
+  Serial.print(half_width);
+  Serial.print("\nCh2: cy=");
+  Serial.print(cy);
+  Serial.print( half_height);
+  float value_x, value_z;
   if (cx != 0) {
-    value = (cx - half_frame);
+    value_x = (cx - half_width);
     Serial.print("\nx position on frame=");
-    Serial.print(value);
+    Serial.print(value_x);
     cfz = .1;
   } else {
-    value = 0;
+    value_x = 0;
   }
-  yaw_control = -value/half_frame;
+  if (cy != 0) {
+    value_z = (cy - half_height);
+    Serial.print("\ny position on frame=");
+    Serial.print(value_z);
+  } else {
+    value_z = 0;
+  }
+  yaw_control = -value_x/half_width;
   Serial.print("\nyaw_control=");
   Serial.print(yaw_control);
+  height_control = value_z/half_height;
+  Serial.print("\nheight_control=");
+  Serial.print(height_control);
   //*************************************
 
   // addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, abz);
-  addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, &yaw_control);
+  addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, &yaw_control, &height_control);
   Serial.print("\nctz=");
   Serial.println(ctz);
   controlOutputs(cfx, cfy, cfz, ctx, cty, ctz);
@@ -251,12 +264,12 @@ void loop() {
 //   // Getting messages from OpenMV
 //   IBus.loop();
 //   int cx = IBus.readChannel(0);
-//   int half_frame = IBus.readChannel(1);
+//   int half_width = IBus.readChannel(1);
 //   Serial.print("\nCh1: cx=");
 //   Serial.print(cx);
 //   Serial.print("\nCh2: frame=");
-//   Serial.print(half_frame);
-//   float xPositionOfBalloon = ((float)cx)/((float)half_frame);
+//   Serial.print(half_width);
+//   float xPositionOfBalloon = ((float)cx)/((float)half_width);
 //   Serial.print("\nxPositionOfBalloon=");
 //   Serial.print(xPositionOfBalloon);
 //   delay(20);
@@ -332,32 +345,31 @@ void loop() {
 //   velocityZ = sensorSuite.returnVZ(); 
 // }
 
-float valtz = 0;
-void getControllerInputs(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float *abz) {
-  if (true) {
-    *fx = 0;//joy_data[0];
-    *fy = 0;//joy_data[1];
-    *fz = 0;//joy_data[2];
-    *tx = 0;//joy_data[3];
-    *ty = 0;//joy_data[4];
-    *tz = 0;//joy_data[5];
-    *abz = 0;//joy_data[6];
-  } else {
-    *fx = joy_data[0];
-    *fy = joy_data[1];
-    *fz = joy_data[2];
-    *tx = joy_data[3];
-    *ty = joy_data[4];
-    *tz = joy_data[5];
-    *abz = joy_data[6];
-  }
-}
+// float valtz = 0;
+// void getControllerInputs(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float *abz) {
+//   if (true) {
+//     *fx = 0;//joy_data[0];
+//     *fy = 0;//joy_data[1];
+//     *fz = 0;//joy_data[2];
+//     *tx = 0;//joy_data[3];
+//     *ty = 0;//joy_data[4];
+//     *tz = 0;//joy_data[5];
+//     *abz = 0;//joy_data[6];
+//   } else {
+//     *fx = joy_data[0];
+//     *fy = joy_data[1];
+//     *fz = joy_data[2];
+//     *tx = joy_data[3];
+//     *ty = joy_data[4];
+//     *tz = joy_data[5];
+//     *abz = joy_data[6];
+//   }
+// }
 
-void addFeedback(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float *yaw_control) {
+void addFeedback(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float *yaw_control, float *height_control) {
   // height control
-  // *fz = (*fz  - (estimatedZ-groundZ))*kpz - (velocityZ)*kdz + abz;//*fz = *fz + abz;
+  *fz = *fz; //+ *height_control * kpz 
   // yaw control
-  
   *tz = *yaw_control * kptz; //- yawrateave*kdtz;
   
   //*tx = *tx - roll* kptx - rollrate *kdtx;
