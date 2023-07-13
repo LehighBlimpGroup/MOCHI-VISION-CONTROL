@@ -27,9 +27,9 @@ HardwareSerial MySerial0(0);
 
 AsyncUDP udp;
 
-float joy_data[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-volatile bool joy_ready = false;
-volatile unsigned long time_now, time_loop; 
+// float joy_data[8] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+// volatile bool joy_ready = false;
+// volatile unsigned long time_now, time_loop; 
 
 //added code
 //Enter arming sequence for ESC
@@ -127,7 +127,7 @@ void loop() {
   float cfx, cfy, cfz, ctx, cty, ctz, abz;   //control force x    control torque x
   cfx = 0;//joy_data[0];
   cfy = 0;//joy_data[1];
-  cfz = 0.5;//joy_data[2];
+  cfz = 1;//joy_data[2];
   ctx = 0;//joy_data[3];
   cty = 0;//joy_data[4];
   ctz = 0;//joy_data[5];
@@ -148,34 +148,36 @@ void loop() {
   Serial.print("\nheight=");
   Serial.print(half_height);
   float value_x, value_z;
-  if (cx != 0) {
-    value_x = (cx - half_width);
-    cfz= .2;
-    Serial.print("\nx position on frame=");
-    Serial.print(value_x);
-  } else {
-    value_x = 0;
-  }
+  // if (cx != 0) {
+  //   value_x = (cx - half_width);
+  //   cfz= 1;
+  //   Serial.print("\nx position on frame=");
+  //   Serial.print(value_x);
+  // } else {
+  //   value_x = 0;
+  // }
   if (cy != 0) {
-    value_z = (cy - half_height);
+    value_z = (-cy + half_height);
+    cfz= 1;
     Serial.print("\ny position on frame=");
     Serial.print(value_z);
-  
   } else {
     value_z = 0;
   }
-  yaw_control = -value_x/half_width;
-  Serial.print("\nyaw_control=");
-  Serial.print(yaw_control);
-  height_control = value_z/half_height;
+  // yaw_control = -value_x/half_width;
+  // Serial.print("\nyaw_control=");
+  // Serial.print(yaw_control);
+  height_control = 3+(value_z/half_height);
   Serial.print("\nheight_control=");
   Serial.print(height_control);
   //*************************************
 
   // addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, abz);
-  addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, &yaw_control, &height_control);
-  Serial.print("\nctz=");
-  Serial.println(ctz);
+  addFeedback(&cfx, &cfy, &cfz, &ctx, &cty, &ctz, &height_control);// &yaw_control,
+  // Serial.print("\nctz=");
+  // Serial.println(ctz);
+  Serial.print("\ncfz=");
+  Serial.println(cfz);
   controlOutputs(cfx, cfy, cfz, ctx, cty, ctz);
 
   servo1.write((int) (s1*180));
@@ -197,11 +199,13 @@ void loop() {
   
 }
 
-void addFeedback(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz, float *yaw_control, float *height_control) {
+void addFeedback(float *fx, float *fy, float *fz, float *tx, float *ty, float *tz,  float *height_control) {//float *yaw_control,
   // height control
-  *fz = *fz; //+ *height_control * kpz 
+  //*fz = *fz; //+ *height_control * kpz 
   // yaw control
-  *tz = *yaw_control * kptz; //- yawrateave*kdtz;
+  // *tz = *yaw_control * kptz; //- yawrateave*kdtz;
+  *fz = *height_control * kpz;
+
 }
 
 float clamp(float in, float min, float max) {
